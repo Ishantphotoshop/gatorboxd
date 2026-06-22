@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gameboxd</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">G</div>
+          <div>
+            <h1>Gameboxd</h1>
+            <p>Track games worth remembering.</p>
+          </div>
+        </div>
+
+        <nav class="nav-tabs" aria-label="Views">
+          <button class="nav-tab active" data-view="discover" type="button">
+            <span class="icon" aria-hidden="true">⌕</span>
+            Discover
+          </button>
+          <button class="nav-tab" data-view="library" type="button">
+            <span class="icon" aria-hidden="true">▦</span>
+            Library
+          </button>
+          <button class="nav-tab" data-view="diary" type="button">
+            <span class="icon" aria-hidden="true">◷</span>
+            Diary
+          </button>
+          <button class="nav-tab" data-view="lists" type="button">
+            <span class="icon" aria-hidden="true">☰</span>
+            Lists
+          </button>
+        </nav>
+
+        <div class="profile-card">
+          <div class="profile-head">
+            <div class="avatar">IK</div>
+            <div>
+              <strong>Player profile</strong>
+              <span id="profileSummary">No games logged yet</span>
+            </div>
+          </div>
+          <div class="stat-grid">
+            <div>
+              <span id="statPlayed">0</span>
+              <small>Played</small>
+            </div>
+            <div>
+              <span id="statAvg">-</span>
+              <small>Avg rating</small>
+            </div>
+            <div>
+              <span id="statBacklog">0</span>
+              <small>Backlog</small>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <main>
+        <header class="topbar">
+          <div class="search-wrap">
+            <span aria-hidden="true">⌕</span>
+            <input id="searchInput" type="search" placeholder="Search games, studios, genres..." />
+          </div>
+          <div class="topbar-actions">
+            <button id="themeToggle" class="icon-button" type="button" title="Toggle theme" aria-label="Toggle theme">◐</button>
+            <button id="addGameButton" class="primary-button" type="button">+ Add game</button>
+          </div>
+        </header>
+
+        <section id="discoverView" class="view active-view" aria-labelledby="discoverTitle">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Now sorting</p>
+              <h2 id="discoverTitle">Find your next game</h2>
+            </div>
+            <div class="segmented" aria-label="Game filters">
+              <button class="segment active" data-filter="all" type="button">All</button>
+              <button class="segment" data-filter="played" type="button">Played</button>
+              <button class="segment" data-filter="backlog" type="button">Backlog</button>
+              <button class="segment" data-filter="favorites" type="button">Favorites</button>
+            </div>
+          </div>
+
+          <div class="quick-row" id="genreFilters" aria-label="Genre filters"></div>
+          <div class="game-grid" id="gameGrid"></div>
+        </section>
+
+        <section id="libraryView" class="view" aria-labelledby="libraryTitle">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Your shelf</p>
+              <h2 id="libraryTitle">Library</h2>
+            </div>
+            <select id="sortSelect" aria-label="Sort library">
+              <option value="recent">Recently logged</option>
+              <option value="rating">Highest rated</option>
+              <option value="title">Title A-Z</option>
+              <option value="hours">Most hours</option>
+            </select>
+          </div>
+          <div class="library-table" id="libraryTable"></div>
+        </section>
+
+        <section id="diaryView" class="view" aria-labelledby="diaryTitle">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Play history</p>
+              <h2 id="diaryTitle">Diary</h2>
+            </div>
+          </div>
+          <div class="timeline" id="diaryList"></div>
+        </section>
+
+        <section id="listsView" class="view" aria-labelledby="listsTitle">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Curated</p>
+              <h2 id="listsTitle">Lists</h2>
+            </div>
+          </div>
+          <div class="list-board" id="listBoard"></div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="gameDialog">
+      <form method="dialog" class="modal" id="gameForm">
+        <div class="modal-head">
+          <div>
+            <p class="eyebrow" id="modalEyebrow">Log game</p>
+            <h2 id="modalTitle">Game title</h2>
+          </div>
+          <button class="icon-button" value="cancel" type="submit" aria-label="Close">×</button>
+        </div>
+
+        <input type="hidden" id="gameId" />
+        <label>
+          Status
+          <select id="statusInput">
+            <option value="played">Played</option>
+            <option value="playing">Playing</option>
+            <option value="backlog">Backlog</option>
+            <option value="dropped">Dropped</option>
+          </select>
+        </label>
+
+        <div class="form-grid">
+          <label>
+            Rating
+            <input id="ratingInput" type="range" min="0" max="5" step="0.5" value="0" />
+            <span class="range-readout" id="ratingReadout">Unrated</span>
+          </label>
+          <label>
+            Hours
+            <input id="hoursInput" type="number" min="0" max="9999" step="1" value="0" />
+          </label>
+        </div>
+
+        <label class="check-row">
+          <input id="favoriteInput" type="checkbox" />
+          <span>Mark as a favorite</span>
+        </label>
+
+        <label>
+          Review
+          <textarea id="reviewInput" rows="5" placeholder="What stuck with you?"></textarea>
+        </label>
+
+        <div class="modal-actions">
+          <button class="ghost-button" id="deleteLogButton" type="button">Remove log</button>
+          <button class="primary-button" value="default" type="submit">Save</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="customDialog">
+      <form method="dialog" class="modal" id="customForm">
+        <div class="modal-head">
+          <div>
+            <p class="eyebrow">New catalog entry</p>
+            <h2>Add a game</h2>
+          </div>
+          <button class="icon-button" value="cancel" type="submit" aria-label="Close">×</button>
+        </div>
+        <label>
+          Title
+          <input id="customTitle" required maxlength="80" />
+        </label>
+        <div class="form-grid">
+          <label>
+            Studio
+            <input id="customStudio" required maxlength="80" />
+          </label>
+          <label>
+            Year
+            <input id="customYear" type="number" min="1970" max="2099" value="2026" />
+          </label>
+        </div>
+        <label>
+          Genres
+          <input id="customGenres" placeholder="RPG, Adventure" />
+        </label>
+        <label>
+          Platforms
+          <input id="customPlatforms" placeholder="PC, Switch, PS5" />
+        </label>
+        <label>
+          Blurb
+          <textarea id="customBlurb" rows="3" placeholder="A short note about the game."></textarea>
+        </label>
+        <div class="modal-actions right">
+          <button class="primary-button" value="default" type="submit">Add to catalog</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
