@@ -34,6 +34,10 @@
             <span class="icon" aria-hidden="true">☰</span>
             Lists
           </button>
+          <button class="nav-tab" data-view="activity" type="button">
+            <span class="icon" aria-hidden="true">◌</span>
+            Activity
+          </button>
         </nav>
 
         <div class="profile-card">
@@ -69,6 +73,7 @@
           </div>
           <div class="topbar-actions">
             <button id="themeToggle" class="icon-button" type="button" title="Toggle theme" aria-label="Toggle theme">◐</button>
+            <button id="apiButton" class="ghost-button" type="button">API</button>
             <button id="addGameButton" class="primary-button" type="button">+ Add game</button>
           </div>
         </header>
@@ -88,6 +93,14 @@
           </div>
 
           <div class="quick-row" id="genreFilters" aria-label="Genre filters"></div>
+          <div class="api-panel">
+            <div>
+              <strong>Online game search</strong>
+              <span id="apiStatus">Add a RAWG API key to import real games.</span>
+            </div>
+            <button id="apiSearchButton" class="primary-button" type="button">Search RAWG</button>
+          </div>
+          <div class="api-results" id="apiResults"></div>
           <div class="game-grid" id="gameGrid"></div>
         </section>
 
@@ -126,8 +139,40 @@
           </div>
           <div class="list-board" id="listBoard"></div>
         </section>
+
+        <section id="activityView" class="view" aria-labelledby="activityTitle">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Social preview</p>
+              <h2 id="activityTitle">Activity</h2>
+            </div>
+          </div>
+          <div class="activity-feed" id="activityFeed"></div>
+        </section>
       </main>
     </div>
+
+    <dialog id="apiDialog">
+      <form method="dialog" class="modal" id="apiForm">
+        <div class="modal-head">
+          <div>
+            <p class="eyebrow">Online data</p>
+            <h2>RAWG API</h2>
+          </div>
+          <button class="icon-button" value="cancel" type="submit" aria-label="Close">×</button>
+        </div>
+        <p class="modal-note">
+          Get a free key from <a href="https://rawg.io/apidocs" target="_blank" rel="noreferrer">rawg.io/apidocs</a>, paste it here, then search from Discover.
+        </p>
+        <label>
+          API key
+          <input id="apiKeyInput" autocomplete="off" placeholder="Paste RAWG key" />
+        </label>
+        <div class="modal-actions right">
+          <button class="primary-button" value="default" type="submit">Save key</button>
+        </div>
+      </form>
+    </dialog>
 
     <dialog id="gameDialog">
       <form method="dialog" class="modal" id="gameForm">

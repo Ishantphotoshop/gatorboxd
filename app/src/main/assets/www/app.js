@@ -144,7 +144,10 @@ const defaultState = {
   genre: "All",
   search: "",
   sort: "recent",
-  theme: "dark"
+  theme: "dark",
+  apiKey: "",
+  apiResults: [],
+  apiError: ""
 };
 
 let state = loadState();
@@ -159,6 +162,14 @@ const els = {
   libraryTable: document.querySelector("#libraryTable"),
   diaryList: document.querySelector("#diaryList"),
   listBoard: document.querySelector("#listBoard"),
+  activityFeed: document.querySelector("#activityFeed"),
+  apiResults: document.querySelector("#apiResults"),
+  apiStatus: document.querySelector("#apiStatus"),
+  apiSearchButton: document.querySelector("#apiSearchButton"),
+  apiButton: document.querySelector("#apiButton"),
+  apiDialog: document.querySelector("#apiDialog"),
+  apiForm: document.querySelector("#apiForm"),
+  apiKeyInput: document.querySelector("#apiKeyInput"),
   sortSelect: document.querySelector("#sortSelect"),
   statPlayed: document.querySelector("#statPlayed"),
   statAvg: document.querySelector("#statAvg"),
@@ -256,6 +267,8 @@ function render() {
   renderLibrary();
   renderDiary();
   renderLists();
+  renderActivity();
+  renderApiPanel();
   renderStats();
   saveState();
 }
@@ -307,6 +320,23 @@ function renderGames() {
         </article>
       `;
     })
+    .join("");
+}
+
+function renderApiPanel() {
+  const hasKey = Boolean(state.apiKey);
+  els.apiStatus.textContent = state.apiError || (hasKey ? "Connected. Search imports real game data from RAWG." : "Add a RAWG API key to import real games.");
+  els.apiResults.innerHTML = state.apiResults
+    .map((game) => `
+      <article class="api-result">
+        <div class="api-thumb" style="--cover: ${game.cover}; background-image: ${game.image ? `url('${game.image}')` : "var(--cover)"}"></div>
+        <div>
+          <h3>${game.title}</h3>
+          <p>${game.year || "Unknown year"} · ${game.genres.join(", ") || "Unsorted"}</p>
+          <button class="primary-button" data-import="${game.id}" type="button">Import</button>
+        </div>
+      </article>
+    `)
     .join("");
 }
 
@@ -390,6 +420,34 @@ function renderLists() {
         </ol>
       </article>
     `)
+    .join("");
+}
+
+function renderActivity() {
+  const entries = loggedGames()
+    .filter(({ log }) => log.review || log.rating || log.favorite)
+    .sort((a, b) => (b.log.loggedAt || "").localeCompare(a.log.loggedAt || ""))
+    .slice(0, 8);
+
+  if (!entries.length) {
+    els.activityFeed.innerHTML = `<div class="empty-state">Your rating, review, and favorite activity will show up here.</div>`;
+    return;
+  }
+
+  els.activityFeed.innerHTML = entries
+    .map(({ game, log }) => {
+      const action = log.favorite ? "favorited" : log.review ? "reviewed" : "rated";
+      return `
+        <article class="activity-item">
+          <div class="activity-avatar">IK</div>
+          <div>
+            <h3>You ${action} ${game.title}</h3>
+            <p class="muted">${ratingText(log.rating)}${log.review ? ` · ${log.review}` : ""}</p>
+          </div>
+          <time class="muted">${formatDate(log.loggedAt)}</time>
+        </article>
+      `;
+    })
     .join("");
 }
 
@@ -479,8 +537,10 @@ function bindEvents() {
   document.body.addEventListener("click", (event) => {
     const logButton = event.target.closest("[data-log]");
     const favButton = event.target.closest("[data-fav]");
+    const importButton = event.target.closest("[data-import]");
     if (logButton) openLogDialog(logButton.dataset.log);
     if (favButton) toggleFavorite(favButton.dataset.fav);
+    if (importButton) importApiGame(importButton.dataset.import);
   });
 
   els.searchInput.addEventListener("input", () => {
@@ -521,6 +581,20 @@ function bindEvents() {
     els.customDialog.showModal();
   });
 
+  els.apiButton.addEventListener("click", () => {
+    els.apiKeyInput.value = state.apiKey;
+    els.apiDialog.showModal();
+  });
+
+  els.apiForm.addEventListener("submit", (event) => {
+    if (event.submitter?.value === "cancel") return;
+    state.apiKey = els.apiKeyInput.value.trim();
+    state.apiError = "";
+    render();
+  });
+
+  els.apiSearchButton.addEventListener("click", searchRawg);
+
   els.customForm.addEventListener("submit", (event) => {
     if (event.submitter?.value === "cancel") return;
     const title = els.customTitle.value.trim();
@@ -544,6 +618,67 @@ function bindEvents() {
     state.theme = state.theme === "dark" ? "light" : "dark";
     render();
   });
+}
+
+async function searchRawg() {
+  if (!state.apiKey) {
+    els.apiKeyInput.value = "";
+    els.apiDialog.showModal();
+    return;
+  }
+
+  const query = state.search.trim() || "popular";
+  state.apiError = "Searching RAWG...";
+  render();
+
+  try {
+    const params = new URLSearchParams({
+      key: state.apiKey,
+      page_size: "8",
+      ordering: "-rating"
+    });
+    if (query !== "popular") params.set("search", query);
+    const response = await fetch(`https://api.rawg.io/api/games?${params.toString()}`);
+    if (!response.ok) throw new Error("RAWG request failed");
+    const data = await response.json();
+    state.apiResults = (data.results || []).map(mapRawgGame);
+    state.apiError = state.apiResults.length ? "" : "No RAWG results found.";
+  } catch {
+    state.apiError = "RAWG did not respond. Check the key or try again later.";
+  }
+
+  render();
+}
+
+function mapRawgGame(item) {
+  const genres = (item.genres || []).map((genre) => genre.name).filter(Boolean);
+  const platforms = (item.platforms || []).map((entry) => entry.platform?.name).filter(Boolean);
+  const year = item.released ? Number(item.released.slice(0, 4)) : "";
+  return {
+    id: `rawg-${item.id}`,
+    title: item.name,
+    studio: "RAWG",
+    year,
+    genres: genres.length ? genres : ["Unsorted"],
+    platforms: platforms.length ? platforms.slice(0, 5) : ["Unknown"],
+    blurb: `Imported from RAWG. Metacritic: ${item.metacritic || "n/a"}.`,
+    cover: randomCover(),
+    image: item.background_image || ""
+  };
+}
+
+function importApiGame(gameId) {
+  const game = state.apiResults.find((entry) => entry.id === gameId);
+  if (!game) return;
+  if (!state.games.some((entry) => entry.id === game.id)) {
+    state.games.unshift(game);
+  }
+  state.genre = "All";
+  state.filter = "all";
+  state.search = game.title;
+  state.apiResults = [];
+  state.apiError = `${game.title} imported.`;
+  render();
 }
 
 function toggleFavorite(gameId) {
