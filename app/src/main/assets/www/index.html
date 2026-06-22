@@ -96,11 +96,22 @@
           <div class="api-panel">
             <div>
               <strong>Online game search</strong>
-              <span id="apiStatus">Add a RAWG API key to import real games.</span>
+              <span id="apiStatus">Add a RAWG API key to browse popular games.</span>
             </div>
-            <button id="apiSearchButton" class="primary-button" type="button">Search RAWG</button>
+            <div class="api-actions">
+              <select id="apiModeSelect" aria-label="RAWG browse mode">
+                <option value="popular">Popular</option>
+                <option value="new">New releases</option>
+                <option value="top">Top rated</option>
+                <option value="search">Search</option>
+              </select>
+              <button id="apiSearchButton" class="primary-button" type="button">Browse RAWG</button>
+            </div>
           </div>
           <div class="api-results" id="apiResults"></div>
+          <div class="load-row">
+            <button id="apiLoadMoreButton" class="ghost-button" type="button" hidden>Load more</button>
+          </div>
           <div class="game-grid" id="gameGrid"></div>
         </section>
 

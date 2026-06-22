@@ -147,7 +147,10 @@ const defaultState = {
   theme: "dark",
   apiKey: "",
   apiResults: [],
-  apiError: ""
+  apiError: "",
+  apiMode: "popular",
+  apiPage: 1,
+  apiHasMore: false
 };
 
 let state = loadState();
@@ -166,6 +169,8 @@ const els = {
   apiResults: document.querySelector("#apiResults"),
   apiStatus: document.querySelector("#apiStatus"),
   apiSearchButton: document.querySelector("#apiSearchButton"),
+  apiLoadMoreButton: document.querySelector("#apiLoadMoreButton"),
+  apiModeSelect: document.querySelector("#apiModeSelect"),
   apiButton: document.querySelector("#apiButton"),
   apiDialog: document.querySelector("#apiDialog"),
   apiForm: document.querySelector("#apiForm"),
@@ -279,6 +284,7 @@ function renderNav() {
   els.searchInput.value = state.search;
   els.sortSelect.value = state.sort;
   els.segments.forEach((segment) => segment.classList.toggle("active", segment.dataset.filter === state.filter));
+  els.apiModeSelect.value = state.apiMode;
 }
 
 function renderGenreFilters() {
@@ -304,7 +310,7 @@ function renderGames() {
       const log = getLog(game.id);
       return `
         <article class="game-card">
-          <div class="cover" style="--cover: ${game.cover}">
+          <div class="cover" style="--cover: ${game.cover}; --cover-image: ${game.image ? `url('${game.image}')` : "none"}">
             <span class="cover-studio">${game.studio}</span>
             <span class="cover-title">${game.title}</span>
           </div>
@@ -325,19 +331,20 @@ function renderGames() {
 
 function renderApiPanel() {
   const hasKey = Boolean(state.apiKey);
-  els.apiStatus.textContent = state.apiError || (hasKey ? "Connected. Search imports real game data from RAWG." : "Add a RAWG API key to import real games.");
+  els.apiStatus.textContent = state.apiError || (hasKey ? "Connected. Browse popular games, new releases, top rated, or search." : "Add a RAWG API key to browse popular games.");
   els.apiResults.innerHTML = state.apiResults
     .map((game) => `
       <article class="api-result">
         <div class="api-thumb" style="--cover: ${game.cover}; background-image: ${game.image ? `url('${game.image}')` : "var(--cover)"}"></div>
         <div>
           <h3>${game.title}</h3>
-          <p>${game.year || "Unknown year"} · ${game.genres.join(", ") || "Unsorted"}</p>
+          <p>${game.year || "Unknown year"} · ${game.genres.join(", ") || "Unsorted"}${game.rawgRating ? ` · RAWG ${game.rawgRating}` : ""}</p>
           <button class="primary-button" data-import="${game.id}" type="button">Import</button>
         </div>
       </article>
     `)
     .join("");
+  els.apiLoadMoreButton.hidden = !state.apiHasMore || !state.apiResults.length;
 }
 
 function loggedGames() {
@@ -590,10 +597,21 @@ function bindEvents() {
     if (event.submitter?.value === "cancel") return;
     state.apiKey = els.apiKeyInput.value.trim();
     state.apiError = "";
+    state.apiResults = [];
+    state.apiPage = 1;
+    render();
+    if (state.apiKey) searchRawg();
+  });
+
+  els.apiModeSelect.addEventListener("change", () => {
+    state.apiMode = els.apiModeSelect.value;
+    state.apiResults = [];
+    state.apiPage = 1;
     render();
   });
 
-  els.apiSearchButton.addEventListener("click", searchRawg);
+  els.apiSearchButton.addEventListener("click", () => searchRawg(false));
+  els.apiLoadMoreButton.addEventListener("click", () => searchRawg(true));
 
   els.customForm.addEventListener("submit", (event) => {
     if (event.submitter?.value === "cancel") return;
@@ -620,34 +638,61 @@ function bindEvents() {
   });
 }
 
-async function searchRawg() {
+async function searchRawg(loadMore = false) {
   if (!state.apiKey) {
     els.apiKeyInput.value = "";
     els.apiDialog.showModal();
     return;
   }
 
-  const query = state.search.trim() || "popular";
-  state.apiError = "Searching RAWG...";
+  const query = state.search.trim();
+  state.apiPage = loadMore ? state.apiPage + 1 : 1;
+  state.apiError = loadMore ? "Loading more games..." : "Loading RAWG games...";
   render();
 
   try {
-    const params = new URLSearchParams({
-      key: state.apiKey,
-      page_size: "8",
-      ordering: "-rating"
-    });
-    if (query !== "popular") params.set("search", query);
+    const params = buildRawgParams(query);
     const response = await fetch(`https://api.rawg.io/api/games?${params.toString()}`);
     if (!response.ok) throw new Error("RAWG request failed");
     const data = await response.json();
-    state.apiResults = (data.results || []).map(mapRawgGame);
+    const nextResults = (data.results || []).map(mapRawgGame);
+    state.apiResults = loadMore ? [...state.apiResults, ...nextResults] : nextResults;
+    state.apiHasMore = Boolean(data.next);
     state.apiError = state.apiResults.length ? "" : "No RAWG results found.";
   } catch {
     state.apiError = "RAWG did not respond. Check the key or try again later.";
+    if (loadMore) state.apiPage = Math.max(1, state.apiPage - 1);
   }
 
   render();
+}
+
+function buildRawgParams(query) {
+  const params = new URLSearchParams({
+    key: state.apiKey,
+    page_size: "24",
+    page: String(state.apiPage)
+  });
+
+  if (state.apiMode === "search") {
+    params.set("search", query || "grand theft auto");
+    params.set("ordering", "-added");
+    return params;
+  }
+
+  if (state.apiMode === "new") {
+    params.set("dates", `${new Date().getFullYear() - 1}-01-01,${new Date().getFullYear()}-12-31`);
+    params.set("ordering", "-released");
+    return params;
+  }
+
+  if (state.apiMode === "top") {
+    params.set("ordering", "-metacritic");
+    return params;
+  }
+
+  params.set("ordering", "-added");
+  return params;
 }
 
 function mapRawgGame(item) {
@@ -663,7 +708,8 @@ function mapRawgGame(item) {
     platforms: platforms.length ? platforms.slice(0, 5) : ["Unknown"],
     blurb: `Imported from RAWG. Metacritic: ${item.metacritic || "n/a"}.`,
     cover: randomCover(),
-    image: item.background_image || ""
+    image: item.background_image || "",
+    rawgRating: item.rating || ""
   };
 }
 

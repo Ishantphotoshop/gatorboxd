@@ -335,9 +335,24 @@ main {
   color: var(--muted);
 }
 
+.api-actions {
+  display: grid;
+  grid-template-columns: minmax(130px, 180px) auto;
+  gap: 8px;
+}
+
+.api-actions select {
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--panel-2);
+}
+
 .api-results {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 12px;
   margin-bottom: 18px;
 }
@@ -372,6 +387,16 @@ main {
   font-size: 13px;
 }
 
+.load-row {
+  display: flex;
+  justify-content: center;
+  margin: -4px 0 18px;
+}
+
+.load-row .ghost-button {
+  min-width: 160px;
+}
+
 .game-card {
   min-width: 0;
   overflow: hidden;
@@ -402,6 +427,9 @@ main {
 
 .cover::before {
   background: var(--cover);
+  background-image: var(--cover-image), var(--cover);
+  background-size: cover;
+  background-position: center;
 }
 
 .cover::after {
@@ -670,9 +698,14 @@ dialog::backdrop {
   }
 
   .topbar,
-  .section-head {
+  .section-head,
+  .api-panel {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .api-actions {
+    grid-template-columns: 1fr;
   }
 
   .topbar-actions {
